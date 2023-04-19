@@ -4,52 +4,57 @@ using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Web.Http;
+using System.Data;
 using System.Data.SqlClient;
+using test_a_1;
 
 namespace test_a_1.Controllers
 {
     public class HistoryController : ApiController
     {
         [HttpGet]
-        [Route("api/history/gethistory")]
-        public IHttpActionResult GetHistory()
+        public HttpResponseMessage GetHistory()
         {
-            List<History> historyList = new List<History>();
+            // Fetch data from java API
+            var javaApiResponse = GetDataFromJavaAPI();
 
-            //calling java API to get history
-            string apiURL = "http://example.com/api/history";
-            using (WebClient webClient = new WebClient())
-            {
-                var response = webClient.DownloadString(apiURL);
-                historyList = JsonConvert.DeserializeObject<List<History>>(response);
-            }
+            // Fetch data from DB
+            var historyData = GetDataFromDB();
 
-            //Fetching request information from DB
-            string connectionString = "Data Source=ServerName;Initial Catalog=DBName;User Id=UserName;Password=PassWord;";
-            using (SqlConnection con = new SqlConnection(connectionString))
-            {
-                SqlCommand cmd = new SqlCommand("SELECT * FROM Requests", con);
-                con.Open();
-                SqlDataReader reader = cmd.ExecuteReader();
-                while (reader.Read())
-                {
-                    historyList.Add(new History
-                    {
-                        RequestId = reader["RequestId"].ToString(),
-                        RequestName = reader["RequestName"].ToString(),
-                        RequestStatus = reader["RequestStatus"].ToString()
-                    });
-                }
-            }
+            // Merge both result
+            historyData = MergeResult(javaApiResponse, historyData);
 
-            return Ok(historyList);
+            return Request.CreateResponse(HttpStatusCode.OK, historyData);
         }
-    }
 
-    public class History
-    {
-        public string RequestId { get; set; }
-        public string RequestName { get; set; }
-        public string RequestStatus { get; set; }
+        public DataTable GetDataFromJavaAPI()
+        {
+            var javaApiDataTable = new DataTable();
+            // Logic to fetch data from java API
+            return javaApiDataTable;
+        }
+
+        public DataTable GetDataFromDB()
+        {
+            var dbDataTable = new DataTable();
+            string connectionString = "your_db_connection_string";
+
+            using (SqlConnection cnn = new SqlConnection(connectionString))
+            {
+                cnn.Open();
+                string query = "select * from history";
+                SqlDataAdapter adapter = new SqlDataAdapter(query, cnn);
+                adapter.Fill(dbDataTable);
+            }
+            return dbDataTable;
+        }
+
+        public DataTable MergeResult(DataTable javaApiDataTable, DataTable dbDataTable)
+        {
+            DataTable mergedDataTable = new DataTable();
+            mergedDataTable.Merge(javaApiDataTable);
+            mergedDataTable.Merge(dbDataTable);
+            return mergedDataTable;
+        }
     }
 }
